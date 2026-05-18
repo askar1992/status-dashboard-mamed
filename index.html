@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Статус-отчёт</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    color: #222;
+    background: #fff;
+    line-height: 1.5;
+    max-width: 1280px;
+    margin: 40px auto;
+    padding: 0 24px 60px 24px;
+  }
+  h1 { font-size: 26px; margin: 0 0 4px 0; color: #111; }
+  .date { color: #777; font-size: 14px; margin-bottom: 24px; }
+  h2 {
+    font-size: 19px;
+    margin: 32px 0 8px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #222;
+    color: #111;
+  }
+  h3 { font-size: 15px; margin: 18px 0 6px 0; color: #444; font-weight: 600; }
+
+  .greeting {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: 14px 18px;
+    margin: 0 0 28px 0;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #444;
+  }
+  .greeting strong { color: #111; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6px 0 14px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid #d0d0d0;
+    padding: 9px 12px;
+    vertical-align: top;
+    text-align: left;
+  }
+  th { background: #f4f4f4; font-weight: 600; color: #222; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.num {
+    width: 56px;
+    color: #777;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  td.task { width: 15%; font-weight: 500; }
+  td.ball-cell { width: 110px; text-align: center; }
+  td.next { width: 22%; }
+  td.comment-cell { width: 18%; background: #fffef5 !important; }
+
+  td[data-col="comment"]:empty::before {
+    content: attr(data-placeholder);
+    color: #bbb;
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  .ball {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    color: #fff;
+  }
+  .ball-us   { background: #c0392b; }
+  .ball-ext  { background: #2563eb; }
+  .ball-team { background: #ea580c; }
+  .ball + .ball { margin-left: 4px; }
+
+  .hot {
+    display: inline-block;
+    background: #c0392b;
+    color: #fff;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  .note { color: #888; font-style: italic; font-size: 13px; }
+
+  [contenteditable="true"] {
+    outline: none;
+    transition: background 0.15s, box-shadow 0.15s;
+    border-radius: 3px;
+  }
+  [contenteditable="true"]:hover { background: #fff8d6; }
+  [contenteditable="true"]:focus { background: #fffbe6; box-shadow: inset 0 0 0 2px #f5c518; }
+  body.mode-ro td[data-col="comment"]:hover { background: #fffbe6 !important; }
+  body.mode-ro td[data-col="comment"]:focus { background: #fffbe6 !important; box-shadow: inset 0 0 0 2px #f5c518; }
+
+  .flash {
+    animation: flash 1.5s ease-out;
+  }
+  @keyframes flash {
+    0%   { background: #fde68a !important; }
+    100% { background: transparent; }
+  }
+
+  /* Sync indicator (top-left) */
+  .sync-indicator {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #555;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    z-index: 1000;
+    font-family: inherit;
+  }
+  .sync-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9ca3af;
+    transition: background 0.2s;
+  }
+  .sync-indicator.sync-ok .dot { background: #16a34a; }
+  .sync-indicator.sync-saving .dot { background: #f59e0b; animation: pulse 1s infinite; }
+  .sync-indicator.sync-error .dot { background: #c0392b; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  /* Toolbar (top-right) — only in RW mode */
+  .toolbar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 1000;
+  }
+  body.mode-ro .toolbar { display: none; }
+  .toolbar button {
+    background: #111;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: transform 0.1s, background 0.15s;
+    font-family: inherit;
+  }
+  .toolbar button:hover { background: #2563eb; }
+  .toolbar button:active { transform: scale(0.97); }
+  .toolbar button.secondary { background: #555; }
+
+  .toast {
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    background: #16a34a;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    z-index: 2000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.show { opacity: 1; }
+
+  /* Pin overlay */
+  .pin-overlay {
+    position: fixed;
+    inset: 0;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+  }
+  .pin-box {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 32px 40px;
+    text-align: center;
+    color: #f1f5f9;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .pin-box h2 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #e2e8f0;
+    border: 0;
+    padding: 0;
+  }
+  .pin-box input {
+    width: 220px;
+    font-size: 28px;
+    text-align: center;
+    letter-spacing: 14px;
+    padding: 12px;
+    border: 2px solid #475569;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #f1f5f9;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .pin-box input:focus { border-color: #3b82f6; }
+  .pin-error {
+    color: #f87171;
+    font-size: 13px;
+    margin-top: 12px;
+    min-height: 18px;
+  }
+  .shake { animation: shake 0.4s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+
+  @media print {
+    .toolbar, .sync-indicator { display: none; }
+    [contenteditable="true"]:hover, [contenteditable="true"]:focus {
+      background: transparent; box-shadow: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="pin-overlay" class="pin-overlay">
+  <div class="pin-box">
+    <h2>Введите код доступа</h2>
+    <input id="pin-input" type="password" inputmode="numeric" maxlength="4" autocomplete="off" autofocus />
+    <div id="pin-error" class="pin-error"></div>
+  </div>
+</div>
+
+<div class="sync-indicator" id="sync-indicator">
+  <span class="dot"></span>
+  <span id="sync-text">Подключение…</span>
+</div>
+
+<div class="toolbar">
+  <button id="btn-export">Экспорт изменений (JSON)</button>
+  <button id="btn-copy" class="secondary">Копировать JSON</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<h1 data-field="title">Статус-отчёт по текущим задачам</h1>
+<div class="date" data-field="date">Дата: 2026-05-18</div>
+
+<div class="greeting">
+  <strong>Приветствую, Мамед!</strong> Эта статус-таблица сделана для Вас. Оставляйте комменты в последнем столбике — они сохраняются автоматически, я увижу их у себя.
+</div>
+
+<h2 data-section="1">1. Компании</h2>
+<table data-section-id="1">
+  <thead>
+    <tr><th>#</th><th>Задача</th><th>Статус</th><th>Мяч на стороне</th><th>Следующее действие</th><th>Комментарий</th></tr>
+  </thead>
+  <tbody>
+    <tr data-row="1.1">
+      <td class="num" data-col="id">1.1</td>
+      <td class="task" data-col="task">Aibat Construction</td>
+      <td data-col="status">— ограничения сняты<br>— ответ в налоговую предоставлен<br>— ожидаем отмашку от НАКа, что можно сдавать документы на перерегистрацию</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-ext">НАК</span></td>
+      <td class="next" data-col="next">Сдача документов на перерегистрацию в ЦОН Конева.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="1.2">
+      <td class="num" data-col="id">1.2</td>
+      <td class="task" data-col="task">Sky Capital Construction</td>
+      <td data-col="status">— участок в Жана Куате не подошёл<br>— провели сверку по генплану района, подходящих участков нет<br>— ожидаю обратную связь от нотариуса по возможным вариантам временного решения<br>— ищем другие варианты</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-team">команда</span></td>
+      <td class="next" data-col="next"></td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 data-section="2">2. Разрешение ДДУ</h2>
+<table data-section-id="2">
+  <thead>
+    <tr><th>#</th><th>Задача</th><th>Статус</th><th>Мяч на стороне</th><th>Следующее действие</th><th>Комментарий</th></tr>
+  </thead>
+  <tbody>
+    <tr data-row="2.1">
+      <td class="num" data-col="id">2.1</td>
+      <td class="task" data-col="task">Получение ТУ по Газу</td>
+      <td data-col="status">— Айгуль взялась за обновление ТУ, ожидаем сегодня/завтра обратную связь.</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-ext">Айгуль</span></td>
+      <td class="next" data-col="next">Обновить ТУ.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.2">
+      <td class="num" data-col="id">2.2</td>
+      <td class="task" data-col="task">Положительное заключение частной экспертизы рабочего проекта Очереди №1</td>
+      <td data-col="status">— Дархану не достаёт ТУ по газу для финализации положительного заключения частной экспертизы<br>— смету отложили</td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next">Ожидаем ТУ по газу.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.3">
+      <td class="num" data-col="id">2.3</td>
+      <td class="task" data-col="task">Обновление Талона</td>
+      <td data-col="status"></td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next">Ожидаем экспертизу.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.4">
+      <td class="num" data-col="id">2.4</td>
+      <td class="task" data-col="task">Соглашение с инжиниринговой компанией (Дархан)</td>
+      <td data-col="status">— будет необходимо после получения талона, но стартуем на этой неделе.</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-team">команда</span></td>
+      <td class="next" data-col="next"></td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.5">
+      <td class="num" data-col="id">2.5</td>
+      <td class="task" data-col="task">Получение заключения инжиниринговой компании</td>
+      <td data-col="status"></td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next">Ожидаем соглашение с инжиниринговой компанией.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.6">
+      <td class="num" data-col="id">2.6</td>
+      <td class="task" data-col="task">Получение разрешения МИО</td>
+      <td data-col="status"></td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next">Ожидаем пункты 2.1–2.5.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="2.7">
+      <td class="num" data-col="id">2.7</td>
+      <td class="task" data-col="task">Обновление документов для Очереди №2 (АПЗ, ТУ, частная экспертиза, талон)</td>
+      <td data-col="status">Данные по отсутствующим документам получены, переданы Айгуль. Будут приняты в работу после финализации документов для Очереди №1.</td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next"></td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 data-section="3">3. Маркетинг</h2>
+<table data-section-id="3">
+  <thead>
+    <tr><th>#</th><th>Задача</th><th>Статус</th><th>Мяч на стороне</th><th>Следующее действие</th><th>Комментарий</th></tr>
+  </thead>
+  <tbody>
+    <tr data-row="3.1">
+      <td class="num" data-col="id">3.1</td>
+      <td class="task" data-col="task">Встреча с Галереей новостроек</td>
+      <td data-col="status">— ожидаем финальное предложение от ГН.</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-ext">ГН</span></td>
+      <td class="next" data-col="next">Встреча для обсуждения формата сотрудничества и deliverables.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+    <tr data-row="3.2">
+      <td class="num" data-col="id">3.2</td>
+      <td class="task" data-col="task">Передача дел от команды Талгата</td>
+      <td data-col="status"></td>
+      <td class="ball-cell" data-col="ball"></td>
+      <td class="next" data-col="next">Ожидаем решение по ГН.</td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 data-section="4">4. Финансы</h2>
+<table data-section-id="4">
+  <thead>
+    <tr><th>#</th><th>Задача</th><th>Статус</th><th>Мяч на стороне</th><th>Следующее действие</th><th>Комментарий</th></tr>
+  </thead>
+  <tbody>
+    <tr data-row="4.1">
+      <td class="num" data-col="id">4.1</td>
+      <td class="task" data-col="task">Обновление кешфлоу сделки</td>
+      <td data-col="status">Файл в работе, будет финализирован не позднее 19 мая.</td>
+      <td class="ball-cell" data-col="ball"><span class="ball ball-us">Аскар</span></td>
+      <td class="next" data-col="next"></td>
+      <td class="comment-cell" contenteditable="true" data-col="comment" data-placeholder="Оставьте коммент..."></td>
+    </tr>
+  </tbody>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCnu4SJFgnXxAmUs-T5Ryn9e7EnLVluiZc",
+  authDomain: "statusboard-674f4.firebaseapp.com",
+  projectId: "statusboard-674f4",
+  storageBucket: "statusboard-674f4.firebasestorage.app",
+  messagingSenderId: "494795224544",
+  appId: "1:494795224544:web:761e4d4b2862fadd0f6785"
+};
+
+const COMMENTS_COLLECTION = 'comments_mamed';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ===== Mode detection =====
+const IS_PUBLIC = location.hostname.includes('github.io');
+if (IS_PUBLIC) {
+  document.body.classList.add('mode-ro');
+  document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+    if (el.dataset.col !== 'comment') el.removeAttribute('contenteditable');
+  });
+}
+
+// ===== Sync indicator =====
+const syncEl = document.getElementById('sync-indicator');
+const syncText = document.getElementById('sync-text');
+function setSync(state, text) {
+  syncEl.classList.remove('sync-ok', 'sync-saving', 'sync-error');
+  if (state) syncEl.classList.add('sync-' + state);
+  syncText.textContent = text;
+}
+
+// ===== Pin lock =====
+(function() {
+  const PIN = '2906';
+  const overlay = document.getElementById('pin-overlay');
+  const input = document.getElementById('pin-input');
+  const error = document.getElementById('pin-error');
+
+  if (sessionStorage.getItem('sd_unlocked') === '1') {
+    overlay.style.display = 'none';
+    return;
+  }
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => input.focus(), 50);
+  input.addEventListener('input', () => {
+    if (input.value.length === 4) {
+      if (input.value === PIN) {
+        sessionStorage.setItem('sd_unlocked', '1');
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+      } else {
+        error.textContent = 'Неверный код';
+        input.value = '';
+        input.classList.add('shake');
+        setTimeout(() => input.classList.remove('shake'), 400);
+      }
+    } else {
+      error.textContent = '';
+    }
+  });
+})();
+
+// ===== Firestore: real-time comments =====
+function flashCell(el) {
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1500);
+}
+
+let firstSnap = true;
+setSync('saving', 'Подключение…');
+onSnapshot(
+  collection(db, COMMENTS_COLLECTION),
+  (snap) => {
+    snap.docChanges().forEach(change => {
+      const rowId = change.doc.id;
+      const data = change.doc.data();
+      const cell = document.querySelector(`tr[data-row="${rowId}"] [data-col="comment"]`);
+      if (!cell) return;
+      if (document.activeElement === cell) return;
+      const newText = (data.text || '').trim();
+      const cur = (cell.innerText || '').trim();
+      if (cur === newText) return;
+      if (newText) cell.innerText = newText;
+      else cell.textContent = '';
+      if (!firstSnap) flashCell(cell);
+    });
+    firstSnap = false;
+    setSync('ok', 'Подключено');
+  },
+  (err) => {
+    console.error('Firestore subscribe error:', err);
+    setSync('error', 'Ошибка подключения');
+  }
+);
+
+// ===== Save on input (debounced) =====
+const saveTimers = {};
+const AUTHOR = IS_PUBLIC ? 'mamed' : 'askar';
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!t.dataset || t.dataset.col !== 'comment') return;
+  const tr = t.closest('tr[data-row]');
+  if (!tr) return;
+  const rowId = tr.dataset.row;
+  const text = (t.innerText || '').trim();
+  clearTimeout(saveTimers[rowId]);
+  setSync('saving', 'Сохранение…');
+  saveTimers[rowId] = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, COMMENTS_COLLECTION, rowId), {
+        text: text,
+        author: AUTHOR,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      setSync('ok', 'Сохранено');
+    } catch (err) {
+      console.error('Save error:', err);
+      setSync('error', 'Ошибка сохранения');
+    }
+  }, 500);
+});
+
+// ===== JSON snapshot (RW only) =====
+function buildSnapshot() {
+  const snap = {
+    exported_at: new Date().toISOString(),
+    title: document.querySelector('[data-field="title"]').innerText.trim(),
+    date: document.querySelector('[data-field="date"]').innerText.trim(),
+    sections: []
+  };
+  document.querySelectorAll('h2[data-section]').forEach(h2 => {
+    const section = { id: h2.dataset.section, title: h2.innerText.trim(), subsections: [], rows: [] };
+    let node = h2.nextElementSibling;
+    let currentSub = null;
+    while (node && node.tagName !== 'H2') {
+      if (node.tagName === 'H3') {
+        currentSub = { id: node.dataset.subsection || null, title: node.innerText.trim(), rows: [] };
+        section.subsections.push(currentSub);
+      } else if (node.tagName === 'TABLE') {
+        node.querySelectorAll('tbody tr[data-row]').forEach(tr => {
+          const row = {
+            id:      (tr.querySelector('[data-col="id"]')?.innerText      || tr.dataset.row || '').trim(),
+            task:    (tr.querySelector('[data-col="task"]')?.innerText    || '').trim(),
+            status:  (tr.querySelector('[data-col="status"]')?.innerText  || '').replace(/\s+/g, ' ').trim(),
+            ball:    (tr.querySelector('[data-col="ball"]')?.innerText    || '').replace(/\s+/g, ' ').trim(),
+            next:    (tr.querySelector('[data-col="next"]')?.innerText    || '').replace(/\s+/g, ' ').trim(),
+            comment: (tr.querySelector('[data-col="comment"]')?.innerText || '').trim()
+          };
+          if (currentSub) currentSub.rows.push(row);
+          else section.rows.push(row);
+        });
+      }
+      node = node.nextElementSibling;
+    }
+    snap.sections.push(section);
+  });
+  return snap;
+}
+
+function showToast(text, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.style.background = ok ? '#16a34a' : '#c0392b';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+document.getElementById('btn-export')?.addEventListener('click', () => {
+  const json = JSON.stringify(buildSnapshot(), null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  a.href = url;
+  a.download = `status_snapshot_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('JSON скачан');
+});
+
+document.getElementById('btn-copy')?.addEventListener('click', async () => {
+  const json = JSON.stringify(buildSnapshot(), null, 2);
+  try {
+    await navigator.clipboard.writeText(json);
+    showToast('JSON скопирован');
+  } catch (e) {
+    showToast('Не удалось скопировать', false);
+  }
+});
+</script>
+
+</body>
+</html>
